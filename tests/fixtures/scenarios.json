@@ -1,0 +1,205 @@
+{
+  "scenarios": {
+    "01_first_seen": {
+      "description": "A brand new message, never seen before. Expected outcome: accepted.",
+      "message": {
+        "source_system": "oms",
+        "entity_type": "order",
+        "business_key": "ORD-20260301-0042",
+        "version": 1,
+        "payload": {
+          "customer_id": "CUST-001",
+          "order_date": "2026-03-01",
+          "total_amount": 199.99,
+          "status": "created"
+        }
+      },
+      "expected_outcome": "accepted"
+    },
+
+    "02_exact_duplicate": {
+      "description": "Same message submitted again. Same key, same version, same payload. Expected outcome: skipped.",
+      "message": {
+        "source_system": "oms",
+        "entity_type": "order",
+        "business_key": "ORD-20260301-0042",
+        "version": 1,
+        "payload": {
+          "customer_id": "CUST-001",
+          "order_date": "2026-03-01",
+          "total_amount": 199.99,
+          "status": "created"
+        }
+      },
+      "expected_outcome": "skipped",
+      "prerequisite": "01_first_seen"
+    },
+
+    "03_same_version_different_payload": {
+      "description": "Same key and version but the payload changed — upstream re-emitted without incrementing version. Expected outcome: quarantined.",
+      "message": {
+        "source_system": "oms",
+        "entity_type": "order",
+        "business_key": "ORD-20260301-0042",
+        "version": 1,
+        "payload": {
+          "customer_id": "CUST-001",
+          "order_date": "2026-03-01",
+          "total_amount": 249.99,
+          "status": "created"
+        }
+      },
+      "expected_outcome": "quarantined",
+      "prerequisite": "01_first_seen"
+    },
+
+    "04_newer_version_supersedes": {
+      "description": "A newer version of the same entity arrives (e.g. order updated with new address). Expected outcome: accepted, previous entry superseded.",
+      "message": {
+        "source_system": "oms",
+        "entity_type": "order",
+        "business_key": "ORD-20260301-0042",
+        "version": 2,
+        "payload": {
+          "customer_id": "CUST-001",
+          "order_date": "2026-03-01",
+          "total_amount": 199.99,
+          "status": "confirmed",
+          "shipping_address": "123 Main St, Springfield"
+        }
+      },
+      "expected_outcome": "accepted",
+      "prerequisite": "01_first_seen"
+    },
+
+    "05_stale_older_version": {
+      "description": "An older version arrives after a newer one is already stored. Expected outcome: skipped as stale.",
+      "message": {
+        "source_system": "oms",
+        "entity_type": "order",
+        "business_key": "ORD-20260301-0042",
+        "version": 1,
+        "payload": {
+          "customer_id": "CUST-001",
+          "order_date": "2026-03-01",
+          "total_amount": 199.99,
+          "status": "created"
+        }
+      },
+      "expected_outcome": "skipped",
+      "prerequisite": "04_newer_version_supersedes"
+    },
+
+    "06_explicit_correlation": {
+      "description": "WMS picking ticket that explicitly references the OMS order ID. The pipeline should link them under the same Correlation ID.",
+      "message": {
+        "source_system": "wms",
+        "entity_type": "picking_ticket",
+        "business_key": "WH-PKT-88431",
+        "version": 1,
+        "payload": {
+          "warehouse_id": "WH-EAST",
+          "oms_order_id": "ORD-20260301-0042",
+          "items": [{"sku": "SKU-001", "qty": 2}],
+          "status": "pending"
+        }
+      },
+      "expected_outcome": "accepted",
+      "expected_correlation": "same_as_oms_order",
+      "prerequisite": "01_first_seen"
+    },
+
+    "07_rule_based_correlation": {
+      "description": "Finance invoice with no explicit order ID, but matching customer + date + amount. Rule-based matching should correlate it.",
+      "message": {
+        "source_system": "finance",
+        "entity_type": "invoice",
+        "business_key": "INV-2026-03-A0017",
+        "version": 1,
+        "payload": {
+          "customer_id": "CUST-001",
+          "invoice_date": "2026-03-01",
+          "total_amount": 199.99,
+          "line_items": [{"description": "Product A", "amount": 199.99}]
+        }
+      },
+      "expected_outcome": "accepted"
+    },
+
+    "08_out_of_order_v3_then_v2": {
+      "description": "V3 arrives first, then V2. V3 should be accepted. V2 should be skipped as stale.",
+      "messages": [
+        {
+          "step": "v3_arrives_first",
+          "source_system": "oms",
+          "entity_type": "order",
+          "business_key": "ORD-20260301-0099",
+          "version": 3,
+          "payload": {"status": "shipped", "customer_id": "CUST-002", "total_amount": 89.00},
+          "expected_outcome": "accepted"
+        },
+        {
+          "step": "v2_arrives_late",
+          "source_system": "oms",
+          "entity_type": "order",
+          "business_key": "ORD-20260301-0099",
+          "version": 2,
+          "payload": {"status": "confirmed", "customer_id": "CUST-002", "total_amount": 89.00},
+          "expected_outcome": "skipped"
+        }
+      ]
+    },
+
+    "09_partial_then_complete": {
+      "description": "Order header arrives first (PARTIAL), then order line item arrives (triggers COMPLETE).",
+      "messages": [
+        {
+          "step": "header_arrives",
+          "source_system": "oms",
+          "entity_type": "order",
+          "business_key": "ORD-20260301-0077",
+          "version": 1,
+          "payload": {"customer_id": "CUST-003", "order_date": "2026-03-01", "total_amount": 350.00},
+          "expected_outcome": "accepted",
+          "expected_completeness": "partial"
+        },
+        {
+          "step": "detail_arrives",
+          "source_system": "oms",
+          "entity_type": "order_line",
+          "business_key": "ORD-20260301-0077-LINE-1",
+          "version": 1,
+          "payload": {
+            "oms_order_id": "ORD-20260301-0077",
+            "sku": "SKU-999",
+            "quantity": 1,
+            "unit_price": 350.00
+          },
+          "expected_outcome": "accepted",
+          "expected_completeness": "complete"
+        }
+      ]
+    },
+
+    "10_replay_batch": {
+      "description": "A batch containing a mix of new messages and replays. New ones should be accepted, replays skipped.",
+      "messages": [
+        {
+          "source_system": "oms", "entity_type": "order", "business_key": "ORD-REPLAY-001",
+          "version": 1, "payload": {"customer_id": "CUST-010", "total_amount": 50.00},
+          "expected_outcome": "accepted"
+        },
+        {
+          "source_system": "oms", "entity_type": "order", "business_key": "ORD-REPLAY-002",
+          "version": 1, "payload": {"customer_id": "CUST-011", "total_amount": 75.00},
+          "expected_outcome": "accepted"
+        },
+        {
+          "source_system": "oms", "entity_type": "order", "business_key": "ORD-REPLAY-001",
+          "version": 1, "payload": {"customer_id": "CUST-010", "total_amount": 50.00},
+          "expected_outcome": "skipped"
+        }
+      ]
+    }
+  }
+}
