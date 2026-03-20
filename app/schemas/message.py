@@ -4,7 +4,7 @@ Pydantic schemas for the message ingestion API.
 
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class IngestMessageRequest(BaseModel):
@@ -48,6 +48,8 @@ class IngestBatchResponse(BaseModel):
 
 
 class IdempotentStateResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     # entity_key is the primary lookup identifier (version-less)
     entity_key: str
     # idempotent_key reflects the version currently stored
@@ -62,11 +64,10 @@ class IdempotentStateResponse(BaseModel):
     last_updated_at: str
     active_staging_id: int | None
 
-    class Config:
-        from_attributes = True
-
 
 class StagingRecordResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     idempotent_key: str
     source_system: str
@@ -77,11 +78,10 @@ class StagingRecordResponse(BaseModel):
     correlation_id: str | None
     staged_at: str
 
-    class Config:
-        from_attributes = True
-
 
 class ReviewQueueItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     idempotent_key: str
     source_system: str
@@ -92,9 +92,6 @@ class ReviewQueueItemResponse(BaseModel):
     reason_detail: str | None
     resolved: bool
     queued_at: str
-
-    class Config:
-        from_attributes = True
 
 
 class CorrelationResponse(BaseModel):
@@ -125,6 +122,8 @@ class DeliveryAttemptResponse(BaseModel):
 
 class DeliveryDLQItemResponse(BaseModel):
     """One DeliveryDLQ entry returned by GET /dlq/delivery."""
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     staging_id: int | None
     system_name: str
@@ -134,9 +133,6 @@ class DeliveryDLQItemResponse(BaseModel):
     resolved_by: str | None
     resolved_at: str | None
     queued_at: str
-
-    class Config:
-        from_attributes = True
 
 
 class DeliveryDLQResolveRequest(BaseModel):

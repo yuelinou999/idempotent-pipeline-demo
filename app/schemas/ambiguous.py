@@ -2,7 +2,7 @@
 Pydantic schemas for the ambiguous outcome queue operator console endpoints.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AmbiguousOutcomeItemResponse(BaseModel):
@@ -11,6 +11,8 @@ class AmbiguousOutcomeItemResponse(BaseModel):
 
     Returned by GET /dlq/ambiguous and GET /dlq/ambiguous/{id}.
     """
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     system_name: str
     staging_id: int | None
@@ -45,8 +47,6 @@ class AmbiguousOutcomeItemResponse(BaseModel):
     created_at: str
     updated_at: str
 
-    class Config:
-        from_attributes = True
 
 
 class QueryStatusResponse(BaseModel):

@@ -1,16 +1,29 @@
+# Runtime database
+pipeline.db
+
+# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
-.env
-*.db
-.pytest_cache/
-.venv/
-venv/
+.eggs/
 dist/
 build/
 
-# Python cache
-__pycache__/
-*.pyc
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment
+.env
+.env.local
+.venv/
+venv/
+env/
+
+# macOS
 .DS_Store
-pipeline.db
+
+# IDE
+.vscode/
+.idea/

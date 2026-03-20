@@ -85,7 +85,19 @@ class TestCreateReplayFromDLQ:
 
     @pytest.mark.asyncio
     async def test_create_from_multiple_dlq_items(self, seeded_client):
-        ids = [await _make_dlq_item(seeded_client, f"ORD-RP01-M-{i:03d}") for i in range(3)]
+        # admissions_crm opens its circuit after open_after_n_failures=3 consecutive
+        # failures, which happens on the very first _make_dlq_item call (3 attempts).
+        # Reset the circuit to closed before each call so subsequent deliveries are
+        # not blocked by the open circuit.  The reset API is itself tested in
+        # test_circuit_breaker.py; its use here is intentional setup, not the subject
+        # under test.
+        ids = []
+        for i in range(3):
+            await seeded_client.post(
+                "/circuits/admissions_crm/reset",
+                json={"target_state": "closed", "reset_by": "test@example.com"},
+            )
+            ids.append(await _make_dlq_item(seeded_client, f"ORD-RP01-M-{i:03d}"))
 
         r = await seeded_client.post("/replays", json={
             "selection_mode": "dlq_items",

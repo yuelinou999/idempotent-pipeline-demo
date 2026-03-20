@@ -2,7 +2,7 @@
 Pydantic schemas for the circuit breaker operator console endpoints.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CircuitBreakerStateResponse(BaseModel):
@@ -11,6 +11,8 @@ class CircuitBreakerStateResponse(BaseModel):
 
     Returned by GET /circuits and GET /circuits/{downstream_name}.
     """
+    model_config = ConfigDict(from_attributes=True)
+
     system_name: str
     state: str = Field(
         ...,
@@ -53,8 +55,6 @@ class CircuitBreakerStateResponse(BaseModel):
         description="ISO-8601 timestamp of the last write to this row.",
     )
 
-    class Config:
-        from_attributes = True
 
 
 class CircuitResetRequest(BaseModel):

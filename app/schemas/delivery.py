@@ -7,7 +7,7 @@ health, reviewing delivery failures, and recording resolution decisions.
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # ---------------------------------------------------------------------------
@@ -16,6 +16,8 @@ from pydantic import BaseModel, Field
 
 class DownstreamSystemResponse(BaseModel):
     """Configuration and mock-behavior settings for a downstream system."""
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     description: str | None
@@ -24,9 +26,6 @@ class DownstreamSystemResponse(BaseModel):
     max_retry_attempts: int
     supports_status_query: bool
     mock_behavior: str
-
-    class Config:
-        from_attributes = True
 
 
 # ---------------------------------------------------------------------------
@@ -95,6 +94,8 @@ class SimulateDeliveryResponse(BaseModel):
 
 class DeliveryDLQItemResponse(BaseModel):
     """A single entry in the delivery dead-letter queue."""
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     staging_id: int | None
     system_name: str
@@ -116,9 +117,6 @@ class DeliveryDLQItemResponse(BaseModel):
     resolved_by: str | None
     resolved_at: str | None
     queued_at: str
-
-    class Config:
-        from_attributes = True
 
 
 class ResolveDLQRequest(BaseModel):
