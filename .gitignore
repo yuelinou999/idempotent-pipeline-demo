@@ -8,3 +8,9 @@ __pycache__/
 venv/
 dist/
 build/
+
+# Python cache
+__pycache__/
+*.pyc
+.DS_Store
+pipeline.db

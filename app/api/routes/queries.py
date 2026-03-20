@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.models.correlation import CorrelationMap, ManualReviewQueue
+from app.models.correlation import CorrelationMap, DataAnomalyQueue
 from app.models.idempotent_state import IdempotentState
 from app.models.ingestion_log import IngestionAttemptLog
 from app.models.staging import StagingRecord
@@ -138,20 +138,33 @@ async def list_staging(
     ]
 
 
-@router.get("/review-queue", response_model=list[ReviewQueueItemResponse])
-async def list_review_queue(
+@router.get(
+    "/dlq/data-anomaly",
+    response_model=list[ReviewQueueItemResponse],
+    summary="List data anomaly queue entries (quarantined records)",
+    tags=["operator console"],
+)
+async def list_data_anomaly_queue(
     resolved: bool = Query(False, description="Include resolved items"),
     limit: int = Query(50, le=500),
     db: AsyncSession = Depends(get_db),
 ) -> list[ReviewQueueItemResponse]:
-    """List items in the manual review queue (quarantined anomalies)."""
+    """
+    List entries in the data anomaly queue.
+
+    Records appear here when the same idempotent key and version arrive with a
+    different payload hash — the upstream re-emitted without incrementing the version.
+    This is a data quality problem requiring investigation at the source system.
+
+    Distinct from GET /dlq/delivery, which lists downstream delivery failures.
+    """
     query = (
-        select(ManualReviewQueue)
-        .order_by(ManualReviewQueue.queued_at.desc())
+        select(DataAnomalyQueue)
+        .order_by(DataAnomalyQueue.queued_at.desc())
         .limit(limit)
     )
     if not resolved:
-        query = query.where(ManualReviewQueue.resolved == False)  # noqa: E712
+        query = query.where(DataAnomalyQueue.resolved == False)  # noqa: E712
 
     items = await db.scalars(query)
     return [
@@ -169,3 +182,17 @@ async def list_review_queue(
         )
         for i in items
     ]
+
+
+@router.get(
+    "/review-queue",
+    response_model=list[ReviewQueueItemResponse],
+    include_in_schema=False,  # hidden from docs — use /dlq/data-anomaly
+)
+async def list_review_queue_legacy(
+    resolved: bool = Query(False),
+    limit: int = Query(50, le=500),
+    db: AsyncSession = Depends(get_db),
+) -> list[ReviewQueueItemResponse]:
+    """Backward-compatible alias for /dlq/data-anomaly. Will be removed in a future release."""
+    return await list_data_anomaly_queue(resolved=resolved, limit=limit, db=db)

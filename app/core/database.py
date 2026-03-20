@@ -28,6 +28,6 @@ async def get_db() -> AsyncSession:
 
 async def init_db() -> None:
     """Create all tables. Called on application startup."""
-    from app.models import idempotent_state, ingestion_log, staging, correlation, review  # noqa: F401
+    from app.models import idempotent_state, ingestion_log, staging, correlation, review, delivery, circuit, ambiguous, replay  # noqa: F401
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

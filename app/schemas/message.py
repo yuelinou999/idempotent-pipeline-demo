@@ -101,3 +101,54 @@ class CorrelationResponse(BaseModel):
     correlation_id: str
     mappings: list[dict[str, Any]]
 
+
+
+# ---------------------------------------------------------------------------
+# Context 2 — Delivery Resilience schemas
+# ---------------------------------------------------------------------------
+
+class DeliveryAttemptRequest(BaseModel):
+    """Request body for POST /delivery/attempt."""
+    staging_id: int = Field(..., ge=1, description="StagingRecord.id to deliver")
+    system_name: str = Field(..., min_length=1, max_length=64, description="DownstreamSystem.name")
+
+
+class DeliveryAttemptResponse(BaseModel):
+    """Response from POST /delivery/attempt — summary of the full retry run."""
+    system_name: str
+    # final_outcome values: success | dlq_transient_exhausted | dlq_non_retryable
+    #                       | queued_ambiguous | circuit_open
+    final_outcome: str
+    attempts_made: int
+    dlq_entry_id: int | None
+
+
+class DeliveryDLQItemResponse(BaseModel):
+    """One DeliveryDLQ entry returned by GET /dlq/delivery."""
+    id: int
+    staging_id: int | None
+    system_name: str
+    failure_category: str
+    last_attempt_at: str
+    resolution_status: str
+    resolved_by: str | None
+    resolved_at: str | None
+    queued_at: str
+
+    class Config:
+        from_attributes = True
+
+
+class DeliveryDLQResolveRequest(BaseModel):
+    """Request body for POST /dlq/delivery/{id}/resolve."""
+    resolved_by: str = Field(..., min_length=1, max_length=128)
+
+
+class DeliveryOutcomesReport(BaseModel):
+    """Response from GET /reports/delivery-outcomes."""
+    window_hours: int
+    # Per (system_name, classification, outcome) breakdown from delivery_attempt_log
+    attempt_breakdown: list[dict]
+    # Per (system_name, failure_category) summary from delivery_dlq
+    dlq_summary: list[dict]
+    totals: dict

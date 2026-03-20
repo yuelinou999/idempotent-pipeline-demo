@@ -45,17 +45,20 @@ class CorrelationMap(Base):
         return f"<CorrelationMap corr={self.correlation_id} src={self.source_system}:{self.source_key}>"
 
 
-class ManualReviewQueue(Base):
+class DataAnomalyQueue(Base):
     """
-    Quarantined or unresolvable records that require human intervention.
+    Quarantined records flagged as data quality anomalies requiring human investigation.
 
-    Records land here when:
-    - same key + same version + different payload_hash (data anomaly)
+    Records land here exclusively for data correctness problems:
+    - same key + same version + different payload_hash (upstream re-emitted without version bump)
     - peer-system conflict with no version precedence
     - schema validation failure
+
+    This table is NOT a delivery failure queue. Delivery failures (retry exhaustion,
+    non-retryable HTTP errors) go to DeliveryDLQ in the Delivery Resilience context.
     """
 
-    __tablename__ = "manual_review_queue"
+    __tablename__ = "data_anomaly_queue"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
@@ -80,7 +83,7 @@ class ManualReviewQueue(Base):
     queued_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), index=True)
 
     def __repr__(self) -> str:
-        return f"<ManualReviewQueue id={self.id} key={self.idempotent_key} reason={self.reason}>"
+        return f"<DataAnomalyQueue id={self.id} key={self.idempotent_key} reason={self.reason}>"
 
 
 class ProductionProjection(Base):
